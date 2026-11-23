@@ -1,0 +1,40 @@
+name: 新需求
+description: 新功能或对已有功能的改动
+title: "[Feat] "
+labels: ["type:feature", "status:ready"]
+body:
+  - type: textarea
+    id: why
+    attributes:
+      label: 背景 / 为什么要做
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: 要做什么
+      description: 界面、交互、数据结构、算法公式。引用设计文档时写明路径
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      description: 每条都要能被验证
+      value: |
+        - [ ] 
+        - [ ] 375×812、360×740、1280×800 三个视口无溢出、无错位
+        - [ ] 旧版 localStorage 数据能正常读取（不丢角色/奖励）
+        - [ ] `npm run typecheck` 和 `npm run build` 通过
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 范围与限制
+      description: 不做什么、不能动什么
+  - type: textarea
+    id: refs
+    attributes:
+      label: 参考
+      description: design/STYLE_GUIDE.md、design/mockups/xx.png、docs/xxx.md 等

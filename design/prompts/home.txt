@@ -1,0 +1,10 @@
+SCREEN: Home / Daily Quests (首页·今日任务).
+Top: hero header panel with a small pixel knight avatar, name "燃脂勇者 Lv.12", an XP bar (purple), a red HP-style bar labeled "体重 72.4kg → 目标 65kg", and a gold coin counter "1,280".
+Middle: big title "今日任务" with a date chip "11/20 周四" and a combat-power badge "战力 3,450" with a lightning icon.
+A vertical list of 5 quest cards, each a pixel panel with an icon, quest name, progress bar and reward chips:
+1. "晨间快走 6000 步" (boot icon) progress 4200/6000 green bar, reward "+30 战力 +20 金币"
+2. "喝水 8 杯" (water drop icon) 5 of 8 little pixel cups filled blue, reward "+10 战力"
+3. "低卡午餐 ≤600kcal" (meat icon) checkmark complete, stamped "已完成"
+4. "核心训练 15 分钟" (dumbbell icon) button "开始", reward "+50 战力"
+5. Boss quest highlighted with orange border: "每周BOSS: 甜食魔王" with skull icon, "剩余 3 天", reward "传说宝箱".
+Bottom navigation, 任务 tab active.

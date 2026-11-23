@@ -1,0 +1,6 @@
+SCREEN: Quest Complete / Check-in result (任务完成结算), modal overlay over a dimmed quest screen.
+Center: an RPG-style victory panel with title "任务完成!" in big gold pixel letters, small pixel knight doing a victory pose with a few static pixel stars around it (no motion blur).
+Quest name "核心训练 15 分钟".
+Reward rows: "+50 战力" with lightning, "+30 XP" with purple bar filling to "Lv.12 → 82%", "+20 金币" with coin, "掉落: 铁质护腕" with item icon and rarity tag "稀有" in blue.
+Below: weight log input "今日体重" with a pixel number field "72.1 kg" and "-0.3" in green.
+Big orange button "领取奖励".

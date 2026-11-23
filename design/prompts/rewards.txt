@@ -1,0 +1,7 @@
+SCREEN: Rewards / Treasure & Shop (奖励).
+Top: gold counter "1,280" and gem counter "36".
+Featured panel: a big pixel treasure chest with sparkle pixels, label "每日宝箱 已可开启", orange button "开启".
+Section "成就徽章": a grid of 8 pixel badges (first 5kg lost, 7-day streak, 10000 steps, water master, etc.), 5 colorful unlocked, 3 grey locked with padlock. Labels like "减重5kg", "七日连胜", "万步行者", "饮水大师".
+Section "兑换商店": 3 horizontal item cards: "休息日券" (calendar icon, 300 金币), "放纵餐券" (pizza icon, 800 金币), "新皮肤: 火焰骑士" (knight icon, 1500 金币), each with a buy button.
+Section "体重里程碑" a pixel road map with flags at 70kg, 68kg, 65kg, current position marker at 72.4kg.
+Bottom navigation, 奖励 tab active.

@@ -1,0 +1,8 @@
+SCREEN: Sleep Report (睡眠 · 昨晚) as an RPG "rest at the inn" theme.
+Top: a small pixel scene of the knight sleeping in an inn bed under a crescent moon (static).
+Big numbers: "6h 12m" and a score badge "睡眠评分 68" in gold.
+A horizontal pixel timeline bar from 00:48 to 07:00 split into blocks: deep sleep dark purple, light sleep blue, REM light purple, awake orange, with a legend "深睡 1h05m / 浅睡 3h40m / REM 1h15m / 清醒 12m".
+A 7-day pixel bar chart "近7天睡眠" with bars, a dashed target line at 7h.
+Effect panel styled like a status-effect card: icon of a yawning face, title "状态: 疲惫 (睡眠<7h)", effect text "今日任务强度 -20%，意志 +0", and a tip "今晚 23:30 前入睡可获得 [精力充沛] 增益 +10% 战力".
+Footer small text "数据来源: 截图导入 07:45".
+Bottom navigation with center 记录 highlighted.

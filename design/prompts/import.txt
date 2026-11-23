@@ -1,0 +1,8 @@
+SCREEN: Import Fitness-Band Screenshot (导入手环截图) with AI vision extraction.
+Top: title "截图导入" and hint text "支持 手环/运动App 的今日数据、睡眠页截图".
+Left: two thumbnail cards of uploaded phone screenshots (generic fitness app look, simplified, no brand logos) labeled "截图1 今日活动" and "截图2 睡眠", plus a dashed "+ 添加截图" slot.
+Below: panel "AI 识别结果 (可修改)" with editable pixel input rows, each with icon, label, value and a green confidence tag "准确" or orange "请核对":
+"步数 8,532 步" 准确, "运动消耗 412 kcal" 准确, "平均心率 72 bpm" 准确, "睡眠时长 6h12m" 准确, "深睡 1h05m" 请核对, "入睡时间 00:48" 准确.
+Note line: "数据日期 2026-11-20 · 来源: 截图识别".
+Big orange button "确认导入 · 更新任务进度", secondary button "重新识别".
+Bottom navigation with center 记录 highlighted.

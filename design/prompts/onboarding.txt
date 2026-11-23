@@ -1,0 +1,6 @@
+SCREEN: Onboarding / Create Hero (创建角色) first-run screen.
+Title "创建你的勇者" at top.
+Center: character preview with left/right pixel arrow buttons to choose among 3 classes, shown as small cards below: "战士 (力量训练)", "游侠 (跑步有氧)", "武僧 (瑜伽饮食)", the warrior card selected with orange border.
+Form panels in pixel style: "昵称" text field, "身高 175 cm", "当前体重 78 kg", "目标体重 68 kg", "每周可运动 4 天" with a pixel slider.
+Section "接入大模型": a field "API 地址" and "API Key ••••••" and a model dropdown, with small note "用于生成每日计划".
+Big orange button "开始冒险" at bottom. No bottom navigation on this screen.

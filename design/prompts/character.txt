@@ -1,0 +1,7 @@
+SCREEN: Character & Combat Power (角色·战力).
+Top: large pixel knight character standing on a small grass tile pedestal, wearing equipped gear (helmet, armor, boots glowing slightly). Name "燃脂勇者 Lv.12" and title badge "称号: 自律新星".
+Below: a huge combat power number "战力 3,450" in gold pixel digits with lightning icons and "+120 今日" in green.
+A stats panel with 4 attribute rows, each icon + name + value + pixel bar: "力量 STR 42" (fist, red), "耐力 END 58" (heart, green), "敏捷 AGI 35" (feather, blue), "意志 WIL 66" (flame, purple). Small note "来源: 力量训练 / 有氧 / 步数 / 连续打卡".
+Equipment grid: 6 square pixel slots (头盔, 护甲, 武器, 鞋子, 饰品, 宠物) with item icons, one empty slot with "+".
+Streak panel: "连续打卡 14 天" with a row of 7 small pixel flames.
+Bottom navigation, 角色 tab active.

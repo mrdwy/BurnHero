@@ -1,0 +1,10 @@
+SCREEN: Submit Meal (提交餐饮 · 晚餐) with AI recognition.
+Top: segmented pixel tabs "早餐 | 午餐 | 晚餐 | 加餐" with 晚餐 selected.
+A photo panel showing a pixel-art photo of a dinner plate (rice, tomato egg stir-fry, green vegetables) inside a pixel frame, with small buttons "拍照" and "相册".
+Text input box: "米饭半碗，番茄炒蛋，清炒西兰花" with a microphone icon (voice input).
+Button "AI 识别" with a pixel magnifier icon.
+Result panel titled "识别结果" listing rows with food icon, name, portion, kcal: "米饭 半碗 120g 140kcal", "番茄炒蛋 1份 230kcal", "西兰花 1份 60kcal", each with a small edit pencil. Total "合计 430 kcal".
+Macro bars: 蛋白质 22g (red), 碳水 55g (blue), 脂肪 14g (gold).
+AI coach mini dialog with pixel sage head: "不错！蛋白质再多一点更好，明天午餐加个鸡蛋。"
+Big orange button "确认提交  +15 战力".
+Bottom navigation with center 记录 highlighted.

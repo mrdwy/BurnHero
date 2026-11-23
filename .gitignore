@@ -1,0 +1,30 @@
+# ===== 密钥 / 本机配置（绝不提交）=====
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+local.properties
+
+# ===== 依赖与构建产物 =====
+node_modules/
+dist/
+build/
+.gradle/
+*.tsbuildinfo
+.vite/
+
+# ===== 发布包（放 GitHub Releases，不进仓库）=====
+release/
+
+# ===== 测试证据（本机留存，结论写进 PR 描述）=====
+review/
+
+# ===== 系统 / 编辑器 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.log
+__pycache__/

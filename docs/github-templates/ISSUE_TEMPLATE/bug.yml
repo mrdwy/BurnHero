@@ -1,0 +1,47 @@
+name: Bug 报告
+description: 功能不对、显示错误、崩溃
+title: "[Bug] "
+labels: ["type:bug", "status:ready"]
+body:
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 从清空 localStorage 开始，一步一步写
+      placeholder: |
+        1. 打开 http://localhost:5173 ，视口 375×812
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      description: 每条都要能被验证（能截图、能跑命令、能看数字）
+      value: |
+        - [ ] 按复现步骤操作不再出现问题
+        - [ ] `npm run typecheck` 和 `npm run build` 通过
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 范围与限制
+      description: 哪些文件/功能不能动
+  - type: input
+    id: env
+    attributes:
+      label: 环境
+      placeholder: Windows 11 / Chrome 131 / 视口 375×812

@@ -1,0 +1,7 @@
+SCREEN: Daily Record Hub (记录中心), opened from the center "+" button.
+Title "今日记录 11/20" and a progress chip "已记录 3/6".
+Section "餐饮" : 4 meal slot cards in a 2x2 grid: "早餐 ✓ 420kcal" (green check), "午餐 ✓ 610kcal" (green check), "晚餐 待提交" (dim, with camera icon and text icon), "加餐 待提交". Bottom of section: total bar "已摄入 1030 / 1650 kcal".
+Section "手环 / 健康数据": a wide card with a phone-screenshot icon and text "导入手环截图" subtitle "自动识别 步数·心率·消耗·睡眠", orange button "上传截图". Next to it small status "上次导入 07:45".
+Section "睡眠": card with moon icon "昨晚 6h12m 评分 68" and a small pixel bar split deep/light/REM in purple/blue shades.
+Section "体重": card with scale icon "72.1 kg  -0.3" green, button "记录".
+Bottom navigation, the center 记录 button highlighted.
