@@ -16,7 +16,9 @@ import ApiSetup from './screens/ApiSetup';
 import BodyCheck from './screens/BodyCheck';
 import VersionNotice from './components/VersionNotice';
 
-export type Route = 'home' | 'char' | 'record' | 'rewards' | 'plan' | 'meal' | 'import' | 'sleep' | 'settings' | 'body';
+import OnlineGuild from './screens/OnlineGuild';
+
+export type Route = 'onlineGuild' | 'home' | 'char' | 'record' | 'rewards' | 'plan' | 'meal' | 'import' | 'sleep' | 'settings' | 'body';
 export type Go = (r: Route, arg?: string) => void;
 
 export default function App() {
@@ -41,6 +43,7 @@ export default function App() {
   return (
     <div className={'app' + (motion ? '' : ' no-motion')}>
       <VersionNotice />
+      {route === 'onlineGuild' && <OnlineGuild />}
       {route === 'home' && <Home go={go} />}
       {route === 'char' && <Character go={go} />}
       {route === 'rewards' && <Rewards />}
