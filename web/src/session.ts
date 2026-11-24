@@ -57,9 +57,11 @@ export function useSession() {
       listeners.add(fn);
       const onStorage = (e: StorageEvent) => e.key === KEY && fn();
       window.addEventListener('storage', onStorage);
+      window.addEventListener('burnhero-session', fn);
       return () => {
         listeners.delete(fn);
         window.removeEventListener('storage', onStorage);
+        window.removeEventListener('burnhero-session', fn);
       };
     },
     readSession,
