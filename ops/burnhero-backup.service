@@ -1,0 +1,6 @@
+[Unit]
+Description=BurnHero database and photo backup
+After=docker.service
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/burnhero/ops/backup.sh

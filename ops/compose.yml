@@ -1,0 +1,44 @@
+name: burnhero
+x-logging: &log
+  driver: json-file
+  options: {max-size: 5m, max-file: '3'}
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    mem_limit: 360m
+    environment:
+      POSTGRES_USER: burnhero
+      POSTGRES_DB: burnhero
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?required}
+    volumes: [pg:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U burnhero -d burnhero]
+      interval: 10s
+      timeout: 4s
+      retries: 8
+    logging: *log
+  api:
+    build: {context: .., dockerfile: ops/Dockerfile}
+    restart: unless-stopped
+    init: true
+    mem_limit: 480m
+    depends_on: {db: {condition: service_healthy}}
+    environment:
+      PGHOST: db
+      PGUSER: burnhero
+      PGDATABASE: burnhero
+      PGPASSWORD: ${DB_PASSWORD:?required}
+      JWT_SECRET: ${JWT_SECRET:?required}
+      PHOTO_DIR: /data/images
+      APP_ORIGINS: ${APP_ORIGINS:-}
+      TZ: Asia/Shanghai
+    ports: ['127.0.0.1:18081:8080']
+    volumes: [images:/data/images]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *log
+volumes: {pg: {}, images: {}}
