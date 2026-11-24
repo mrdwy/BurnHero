@@ -9,6 +9,7 @@ import {
   group,
   type Session,
 } from "../guildClient";
+import { clearSession, readSession, saveSession } from "../session";
 const labels: Record<string, string> = {
   breakfast: "早餐照片",
   lunch: "午餐照片",
@@ -28,13 +29,6 @@ type Feed = {
   photos: Record<string, string>;
   likes: number;
   comments: { name: string; body: string }[];
-};
-const readSession = (): Session | null => {
-  try {
-    return JSON.parse(sessionStorage.getItem("guild-session") || "null");
-  } catch {
-    return null;
-  }
 };
 function Media({ s, id }: { s: Session; id: string }) {
   const [url, set] = useState("");
@@ -135,8 +129,7 @@ export default function OnlineGuild() {
     };
   }, [s]);
   function clear() {
-    sessionStorage.removeItem("guild-session");
-    sessionStorage.removeItem("guild-team");
+    clearSession();
     session(null);
     team(null);
     posts([]);
@@ -163,7 +156,7 @@ export default function OnlineGuild() {
     ).json();
     const user = { ...base, ...result };
     localStorage.setItem("guild-server", base.origin);
-    sessionStorage.setItem("guild-session", JSON.stringify(user));
+    saveSession(user);
     password("");
     session(user);
     notice("已登录");

@@ -17,12 +17,15 @@ import BodyCheck from './screens/BodyCheck';
 import VersionNotice from './components/VersionNotice';
 
 import OnlineGuild from './screens/OnlineGuild';
+import Auth from './screens/Auth';
+import { useSession } from './session';
 
 export type Route = 'onlineGuild' | 'home' | 'char' | 'record' | 'rewards' | 'plan' | 'meal' | 'import' | 'sleep' | 'settings' | 'body';
 export type Go = (r: Route, arg?: string) => void;
 
 export default function App() {
   const state = useStore((s) => s);
+  const session = useSession();
   const hasProfile = !!state.profile;
   const motion = useStore((s) => s.prefs?.motion !== false);
   const [route, setRoute] = useState<Route>('plan');
@@ -33,6 +36,7 @@ export default function App() {
     window.scrollTo(0, 0);
   };
 
+  if (!session) return <div className="app"><Auth /><ToastHost /></div>;
   if (!apiReady(state.llm)) return <div className="app"><ApiSetup /><ToastHost /></div>;
   const needsAssessment = !latestAssessment(state);
   if ((needsAssessment && route !== 'settings') || route === 'body') return <div className={'app' + (motion ? '' : ' no-motion')}><BodyCheck onSettings={() => go('settings')} onDone={() => go('plan')} onCancel={needsAssessment ? undefined : () => go('plan')} /><ToastHost /></div>;

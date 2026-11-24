@@ -1,3 +1,4 @@
+import { clearSession } from "./session";
 export type Session = { origin: string; id: string; token: string };
 export type Entry = {
   key: string;
@@ -83,6 +84,10 @@ export async function request(
     cache: "no-store",
     redirect: "error",
   });
+  if (res.status === 401 && s.token) {
+    clearSession();
+    throw Error("登录已失效，请重新登录");
+  }
   if (!res.ok)
     throw Error(
       (await res.json().catch(() => ({}))).error ?? `请求失败 (${res.status})`,

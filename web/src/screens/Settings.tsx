@@ -3,6 +3,7 @@ import type { Go } from '../App';
 import { getState, resetAll, setState, useStore } from '../store';
 import { Panel, Title } from '../components/ui';
 import { ApiConfiguration } from './ApiSetup';
+import { clearSession } from '../session';
 
 export default function Settings({ go }: { go: Go }) {
   const motion = useStore((s) => s.prefs?.motion !== false);
@@ -24,6 +25,11 @@ export default function Settings({ go }: { go: Go }) {
         <span style={{ width: 40 }} />
       </div>
       <ApiConfiguration />
+      <Panel className="col">
+        <Title>账号</Title>
+        <span className="small dim">退出后回到登录页，本机的角色和记录不会删除。</span>
+        <button className="btn ghost" onClick={clearSession}>退出登录</button>
+      </Panel>
       <Panel className="col">
         <Title>显示</Title>
         <label className="check"><input type="checkbox" checked={motion} onChange={(e) => setState((s) => void (s.prefs = { ...(s.prefs ?? { motion: true }), motion: e.target.checked }))} />角色待机呼吸动画</label>
