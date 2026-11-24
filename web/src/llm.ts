@@ -95,26 +95,74 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
+// 模型返回的日期五花八门（2026/5/28 22:12、2026-05-28T22:12），统一成 YYYY-MM-DD，认不出就 null。
+export function normalizeDate(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const m = /(\d{4})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})/.exec(v);
+  if (!m) return null;
+  const [y, mo, d] = [+m[1], +m[2], +m[3]];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+// 上传前压缩：长截图原图常有 0.5～1MB。宽度限制 1080、JPEG 0.85，数字仍清晰，请求更小更稳。
+export async function shrinkImage(dataUrl: string, maxWidth = 1080, maxPixels = 6_000_000): Promise<string> {
+  if (typeof document === 'undefined' || !dataUrl.startsWith('data:image/')) return dataUrl;
+  try {
+    const img = new Image();
+    img.src = dataUrl;
+    await img.decode();
+    const scale = Math.min(1, maxWidth / img.naturalWidth, Math.sqrt(maxPixels / (img.naturalWidth * img.naturalHeight)));
+    if (scale >= 1 && dataUrl.length < 700_000) return dataUrl;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return dataUrl;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const out = canvas.toDataURL('image/jpeg', 0.85);
+    return out.length < dataUrl.length ? out : dataUrl;
+  } catch {
+    return dataUrl;
+  }
+}
+
+const NO_IMAGE = '模型没有读出任何指标，可能没收到图片（服务不稳定或该模型不支持看图）。请重试，或换一个支持图片识别的模型。';
+
 export interface BodyPhotoResult {
   measuredDate: string | null;
   metrics: BodyMetrics;
   rawResponse: string;
 }
 
+// 旧提示词允许模型“自然语言回复”，结果常常抽不出数值。改为严格 JSON，并要求 value/confidence。
+const BODY_SYSTEM = '从体脂秤App报告截图提取明确显示的数值，不推算、不编造；只输出JSON：{"measured_date":"YYYY-MM-DD或null","metrics":{"weight_kg":{"value":null,"confidence":"high|low"},"body_fat_pct":null,"muscle_kg":null,"visceral_fat":null,"bmr_kcal":null,"bmi":null}}。每项已识别指标使用value/confidence对象，value只填数字不带单位；缺失字段填null。muscle_kg取骨骼肌量。';
+
 export async function recognizeBodyPhoto(state: State, image: string, details?: { condition: string; sleep: string; availableMinutes: string }): Promise<BodyPhotoResult> {
-  const rawResponse = await chatRaw(state, '读取用户上传的报告截图并描述测量结果。直接回复用户，不需要审核图片类型、日期或数值范围。可返回自然语言或包含 measured_date、metrics 的 JSON。', [
-    { type: 'text', text: '请读取这张报告截图。用户补充：' + JSON.stringify(details ?? {}) },
-    { type: 'image_url', image_url: { url: image } },
-  ]);
-  let parsed: any;
-  try { parsed = parseJson(rawResponse); } catch { parsed = {}; }
-  const metrics: BodyMetrics = {};
-  for (const field of BODY_FIELDS) {
-    const raw = parsed?.metrics?.[field.key];
-    const value = num(raw && typeof raw === 'object' ? raw.value : raw);
-    if (value != null) metrics[field.key] = value;
-  }
-  return { measuredDate: typeof parsed?.measured_date === 'string' ? parsed.measured_date : null, metrics, rawResponse };
+  const url = await shrinkImage(image);
+  const read = (parsed: any) => {
+    const metrics: BodyMetrics = {};
+    for (const field of BODY_FIELDS) {
+      const raw = parsed?.metrics?.[field.key];
+      const value = num(raw && typeof raw === 'object' ? raw.value : raw);
+      if (value != null) metrics[field.key] = value;
+    }
+    return metrics;
+  };
+  const rawResponse = await withRetry(async () => {
+    const response = await chatRaw(state, BODY_SYSTEM, [
+      { type: 'text', text: '请读取这张报告截图。用户补充：' + JSON.stringify(details ?? {}) },
+      { type: 'image_url', image_url: { url } },
+    ]);
+    let parsed: any;
+    try { parsed = parseJson(response); } catch { throw new Error(NO_IMAGE); }
+    if (!Object.keys(read(parsed)).length) throw new Error(NO_IMAGE);
+    return response;
+  });
+  const parsed = parseJson(rawResponse);
+  return { measuredDate: normalizeDate(parsed?.measured_date), metrics: read(parsed), rawResponse };
 }
 
 // ---------- ① 餐饮识别 ----------
@@ -130,7 +178,7 @@ export interface MealResult {
 export async function recognizeMeal(s: State, slot: MealSlot, text: string, image?: string): Promise<MealResult> {
   const eaten = Object.values(day(s).meals).reduce((n, m) => n + (m?.total_kcal ?? 0), 0);
   const prompt = `餐次：${MEAL_LABEL[slot]}\n用户描述：${text || '（无，仅看图片）'}\n今日已摄入：${eaten} kcal，今日目标：${day(s).plan?.targets.intake_kcal ?? defaultIntake(s)} kcal`;
-  const content: Content = image ? [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: image } }] : prompt;
+  const content: Content = image ? [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: await shrinkImage(image) } }] : prompt;
   const r = await withRetry(() => chat(s, MEAL_SYSTEM, content));
   return normalizeMeal(r);
 }
@@ -160,7 +208,7 @@ export async function recognizeScreenshots(s: State, images: string[]): Promise<
   if (!images.length) throw new Error('请先上传截图');
   const content: Content = [
     { type: 'text', text: `请识别这些截图。今天是 ${today()}。` },
-    ...images.map((url) => ({ type: 'image_url' as const, image_url: { url } })),
+    ...(await Promise.all(images.map(async (url) => ({ type: 'image_url' as const, image_url: { url: await shrinkImage(url) } })))),
   ];
   const r = await withRetry(() => chat(s, SHOT_SYSTEM, content));
   const fields: any = {};
@@ -170,7 +218,7 @@ export async function recognizeScreenshots(s: State, images: string[]): Promise<
       else if (v != null) fields[k] = { value: v, confidence: 'high' };
     }
   }
-  return { date: r.date ?? null, fields };
+  return { date: normalizeDate(r.date), fields };
 }
 
 // ---------- ③ 每日计划 ----------
