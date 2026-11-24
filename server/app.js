@@ -14,6 +14,7 @@ import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { slots, report, damage } from "./score.js";
 import { shiftDate, weekKey } from "./rules/targets.js";
+import { forward, httpsTransport } from "./llm.js";
 const scrypt = promisify(derive);
 const auth = z.object({
   login: z
@@ -48,6 +49,7 @@ export async function makeApp({
   secret,
   webRoot,
   clock = today,
+  llmTransport = httpsTransport(),
 }) {
   if (!secret || Buffer.byteLength(secret) < 32)
     throw Error("JWT_SECRET too short");
@@ -157,6 +159,14 @@ export async function makeApp({
         if (!r.player) fail(401, "请重新登录");
       });
       const team = (r) => r.player.team ?? fail(403, "请先加入战队");
+      api.post(
+        "/llm",
+        { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+        async (r, reply) => {
+          const res = await forward(r.body, llmTransport);
+          return reply.code(res.status).type(res.contentType).send(res.body);
+        },
+      );
       api.get("/me", async (r) => ({
         ...r.player,
         guild: r.player.team

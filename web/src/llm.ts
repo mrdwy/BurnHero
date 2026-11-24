@@ -32,9 +32,12 @@ async function chatRaw(s: State, system: string, user: Content): Promise<string>
   if (!apiReady(s.llm)) throw new Error('请先填写 API 地址、Key 和模型');
   const { baseUrl, apiKey, model } = s.llm;
   const payload = { model, temperature: 0.4, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] };
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = sessionToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
   const r = await fetch('/api/llm', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ baseUrl, apiKey, payload }),
     signal: AbortSignal.timeout(180000),
   });
@@ -45,9 +48,32 @@ async function chatRaw(s: State, system: string, user: Content): Promise<string>
   } catch {
     throw new Error(`接口返回不是 JSON（HTTP ${r.status}）：${text.slice(0, 120)}`);
   }
-  if (!r.ok || j.error) throw new Error(`模型请求失败（HTTP ${r.status}），请检查地址、Key、模型及服务可用性`);
+  if (!r.ok || j.error) throw new Error(llmError(r.status, j));
   const content: string = j.choices?.[0]?.message?.content ?? '';
   return content;
+}
+
+// 线上服务的转发接口要求登录；本地便携版没有账号服务，不带 token 也能用。
+function sessionToken(): string | undefined {
+  for (const store of [localStorage, sessionStorage]) {
+    try {
+      const token = JSON.parse(store.getItem('guild-session') || 'null')?.token;
+      if (typeof token === 'string' && token) return token;
+    } catch {}
+  }
+  return undefined;
+}
+
+// 区分“本服务的问题”和“模型服务的问题”，不要一律让用户去查 Key。
+export function llmError(status: number, j: any): string {
+  if (status === 401 && typeof j?.error === 'string') return '登录已失效，请重新登录后再识别';
+  if (typeof j?.error === 'string') return `AI 转发失败（HTTP ${status}）：${j.error}`;
+  if (status === 404 && typeof j?.message === 'string' && j.message.startsWith('Route')) return '服务器缺少 AI 转发接口（HTTP 404），请联系管理员更新服务';
+  const upstream = typeof j?.error?.message === 'string' ? `：${j.error.message.slice(0, 120)}` : '';
+  if (status === 401 || status === 403) return `模型服务拒绝了请求（HTTP ${status}），请检查 API Key${upstream}`;
+  if (status === 404) return `模型服务返回 404，请检查 API 地址是否需要带 /v1，以及模型名是否正确${upstream}`;
+  if (status === 429) return `模型服务限流或余额不足（HTTP 429）${upstream}`;
+  return `模型请求失败（HTTP ${status}），请检查地址、Key、模型及服务可用性${upstream}`;
 }
 
 async function chat(s: State, system: string, user: Content): Promise<any> {
