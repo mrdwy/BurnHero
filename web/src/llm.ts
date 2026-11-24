@@ -66,7 +66,15 @@ function sessionToken(): string | undefined {
 
 // 区分“本服务的问题”和“模型服务的问题”，不要一律让用户去查 Key。
 export function llmError(status: number, j: any): string {
-  if (status === 401 && typeof j?.error === 'string') return '登录已失效，请重新登录后再识别';
+  if (status === 401 && typeof j?.error === 'string') {
+    // 本服务的登录失效：清掉会话并通知界面回到登录页。
+    try {
+      localStorage.removeItem('guild-session');
+      sessionStorage.removeItem('guild-session');
+      window.dispatchEvent(new Event('burnhero-session'));
+    } catch {}
+    return '登录已失效，请重新登录后再识别';
+  }
   if (typeof j?.error === 'string') return `AI 转发失败（HTTP ${status}）：${j.error}`;
   if (status === 404 && typeof j?.message === 'string' && j.message.startsWith('Route')) return '服务器缺少 AI 转发接口（HTTP 404），请联系管理员更新服务';
   const upstream = typeof j?.error?.message === 'string' ? `：${j.error.message.slice(0, 120)}` : '';
