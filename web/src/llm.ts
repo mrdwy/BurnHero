@@ -2,6 +2,8 @@ import type { BodyMetrics, FoodItem, HealthData, MealSlot, Plan, State, Conf } f
 import { MEAL_LABEL, bmr, defaultIntake } from './game';
 import { addDays, day, latestAssessment, latestWeight, today, weekday } from './store';
 import { apiReady, BODY_FIELDS } from './validate';
+import { requestModel, withModelRetry as withRetry } from './llmRequest';
+export { llmError } from './llmRequest';
 
 // ============ 大模型指令（与 design/AI_INTERACTION.md 保持一致） ============
 
@@ -32,25 +34,7 @@ async function chatRaw(s: State, system: string, user: Content): Promise<string>
   if (!apiReady(s.llm)) throw new Error('请先填写 API 地址、Key 和模型');
   const { baseUrl, apiKey, model } = s.llm;
   const payload = { model, temperature: 0.4, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] };
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const token = sessionToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const r = await fetch('/api/llm', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ baseUrl, apiKey, payload }),
-    signal: AbortSignal.timeout(180000),
-  });
-  const text = await r.text();
-  let j: any;
-  try {
-    j = JSON.parse(text);
-  } catch {
-    throw new Error(`接口返回不是 JSON（HTTP ${r.status}）：${text.slice(0, 120)}`);
-  }
-  if (!r.ok || j.error) throw new Error(llmError(r.status, j));
-  const content: string = j.choices?.[0]?.message?.content ?? '';
-  return content;
+  return requestModel({ baseUrl, apiKey, payload }, sessionToken());
 }
 
 // 线上服务的转发接口要求登录；本地便携版没有账号服务，不带 token 也能用。
@@ -64,26 +48,6 @@ function sessionToken(): string | undefined {
   return undefined;
 }
 
-// 区分“本服务的问题”和“模型服务的问题”，不要一律让用户去查 Key。
-export function llmError(status: number, j: any): string {
-  if (status === 401 && typeof j?.error === 'string') {
-    // 本服务的登录失效：清掉会话并通知界面回到登录页。
-    try {
-      localStorage.removeItem('guild-session');
-      sessionStorage.removeItem('guild-session');
-      window.dispatchEvent(new Event('burnhero-session'));
-    } catch {}
-    return '登录已失效，请重新登录后再识别';
-  }
-  if (typeof j?.error === 'string') return `AI 转发失败（HTTP ${status}）：${j.error}`;
-  if (status === 404 && typeof j?.message === 'string' && j.message.startsWith('Route')) return '服务器缺少 AI 转发接口（HTTP 404），请联系管理员更新服务';
-  const upstream = typeof j?.error?.message === 'string' ? `：${j.error.message.slice(0, 120)}` : '';
-  if (status === 401 || status === 403) return `模型服务拒绝了请求（HTTP ${status}），请检查 API Key${upstream}`;
-  if (status === 404) return `模型服务返回 404，请检查 API 地址是否需要带 /v1，以及模型名是否正确${upstream}`;
-  if (status === 429) return `模型服务限流或余额不足（HTTP 429）${upstream}`;
-  return `模型请求失败（HTTP ${status}），请检查地址、Key、模型及服务可用性${upstream}`;
-}
-
 async function chat(s: State, system: string, user: Content): Promise<any> {
   return parseJson(await chatRaw(s, system, user));
 }
@@ -93,14 +57,6 @@ export function parseJson(t: string) {
   const a = s.indexOf('{'), b = s.lastIndexOf('}');
   if (a < 0 || b < 0) throw new Error('模型没有返回 JSON：' + s.slice(0, 80));
   return JSON.parse(s.slice(a, b + 1));
-}
-
-async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
-  try {
-    return await fn();
-  } catch (e) {
-    return await fn();
-  }
 }
 
 // 模型返回的日期五花八门（2026/5/28 22:12、2026-05-28T22:12），统一成 YYYY-MM-DD，认不出就 null。

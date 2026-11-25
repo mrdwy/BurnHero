@@ -89,13 +89,24 @@ export function safeLookup(resolve = dnsLookup) {
 const MAX_RESPONSE = 4 * 1024 * 1024;
 
 // 默认传输：node:https + 安全解析。测试可注入自己的 transport。
-export function httpsTransport({ resolve, timeout = 180000 } = {}) {
+export function httpsTransport({ resolve, connectTimeout = 10000, timeout = 150000 } = {}) {
   const lookup = safeLookup(resolve);
   return (url, { headers, body }) =>
     new Promise((ok, no) => {
+      let connectTimer;
+      let totalTimer;
+      const clearConnectTimer = () => clearTimeout(connectTimer);
+      const cleanup = () => {
+        clearConnectTimer();
+        clearTimeout(totalTimer);
+      };
+      const reject = (error) => {
+        cleanup();
+        no(error);
+      };
       const req = https.request(
         url,
-        { method: "POST", headers, lookup, timeout },
+        { method: "POST", headers, lookup },
         (res) => {
           const chunks = [];
           let size = 0;
@@ -107,20 +118,33 @@ export function httpsTransport({ resolve, timeout = 180000 } = {}) {
             }
             chunks.push(c);
           });
-          res.on("end", () =>
+          res.on("end", () => {
+            cleanup();
             ok({
               status: res.statusCode ?? 502,
               contentType: res.headers["content-type"] || "application/json",
               body: Buffer.concat(chunks),
-            }),
-          );
-          res.on("error", no);
+            });
+          });
+          res.on("error", reject);
         },
       );
-      req.on("timeout", () =>
-        req.destroy(Object.assign(Error("timeout"), { code: "ETIMEDOUT" })),
+      connectTimer = setTimeout(
+        () => req.destroy(Object.assign(Error("connection timeout"), { code: "ECONNECTTIMEOUT" })),
+        connectTimeout,
       );
-      req.on("error", no);
+      totalTimer = setTimeout(
+        () => req.destroy(Object.assign(Error("timeout"), { code: "ETIMEDOUT" })),
+        timeout,
+      );
+      req.on("socket", (socket) => {
+        if (req.reusedSocket) {
+          clearConnectTimer();
+        } else {
+          socket.once("secureConnect", clearConnectTimer);
+        }
+      });
+      req.on("error", reject);
       req.end(body);
     });
 }
@@ -140,6 +164,7 @@ export async function forward(input, transport) {
     });
   } catch (e) {
     if (e?.code === "EBLOCKED") fail(400, "不允许访问内网地址");
+    if (e?.code === "ECONNECTTIMEOUT") fail(504, "服务器暂时无法连接模型服务，请稍后重试或更换可访问的 API 地址");
     if (e?.code === "ETIMEDOUT") fail(504, "模型服务响应超时");
     if (e?.code === "ETOOLARGE") fail(502, "模型服务返回内容过大");
     if (e?.code === "ENOTFOUND") fail(502, "找不到 API 地址对应的服务器，请检查地址");
