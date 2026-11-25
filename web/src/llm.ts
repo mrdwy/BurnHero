@@ -32,9 +32,12 @@ async function chatRaw(s: State, system: string, user: Content): Promise<string>
   if (!apiReady(s.llm)) throw new Error('请先填写 API 地址、Key 和模型');
   const { baseUrl, apiKey, model } = s.llm;
   const payload = { model, temperature: 0.4, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] };
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = sessionToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
   const r = await fetch('/api/llm', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ baseUrl, apiKey, payload }),
     signal: AbortSignal.timeout(180000),
   });
@@ -45,9 +48,40 @@ async function chatRaw(s: State, system: string, user: Content): Promise<string>
   } catch {
     throw new Error(`接口返回不是 JSON（HTTP ${r.status}）：${text.slice(0, 120)}`);
   }
-  if (!r.ok || j.error) throw new Error(`模型请求失败（HTTP ${r.status}），请检查地址、Key、模型及服务可用性`);
+  if (!r.ok || j.error) throw new Error(llmError(r.status, j));
   const content: string = j.choices?.[0]?.message?.content ?? '';
   return content;
+}
+
+// 线上服务的转发接口要求登录；本地便携版没有账号服务，不带 token 也能用。
+function sessionToken(): string | undefined {
+  for (const store of [localStorage, sessionStorage]) {
+    try {
+      const token = JSON.parse(store.getItem('guild-session') || 'null')?.token;
+      if (typeof token === 'string' && token) return token;
+    } catch {}
+  }
+  return undefined;
+}
+
+// 区分“本服务的问题”和“模型服务的问题”，不要一律让用户去查 Key。
+export function llmError(status: number, j: any): string {
+  if (status === 401 && typeof j?.error === 'string') {
+    // 本服务的登录失效：清掉会话并通知界面回到登录页。
+    try {
+      localStorage.removeItem('guild-session');
+      sessionStorage.removeItem('guild-session');
+      window.dispatchEvent(new Event('burnhero-session'));
+    } catch {}
+    return '登录已失效，请重新登录后再识别';
+  }
+  if (typeof j?.error === 'string') return `AI 转发失败（HTTP ${status}）：${j.error}`;
+  if (status === 404 && typeof j?.message === 'string' && j.message.startsWith('Route')) return '服务器缺少 AI 转发接口（HTTP 404），请联系管理员更新服务';
+  const upstream = typeof j?.error?.message === 'string' ? `：${j.error.message.slice(0, 120)}` : '';
+  if (status === 401 || status === 403) return `模型服务拒绝了请求（HTTP ${status}），请检查 API Key${upstream}`;
+  if (status === 404) return `模型服务返回 404，请检查 API 地址是否需要带 /v1，以及模型名是否正确${upstream}`;
+  if (status === 429) return `模型服务限流或余额不足（HTTP 429）${upstream}`;
+  return `模型请求失败（HTTP ${status}），请检查地址、Key、模型及服务可用性${upstream}`;
 }
 
 async function chat(s: State, system: string, user: Content): Promise<any> {
@@ -69,26 +103,74 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
+// 模型返回的日期五花八门（2026/5/28 22:12、2026-05-28T22:12），统一成 YYYY-MM-DD，认不出就 null。
+export function normalizeDate(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const m = /(\d{4})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})/.exec(v);
+  if (!m) return null;
+  const [y, mo, d] = [+m[1], +m[2], +m[3]];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+// 上传前压缩：长截图原图常有 0.5～1MB。宽度限制 1080、JPEG 0.85，数字仍清晰，请求更小更稳。
+export async function shrinkImage(dataUrl: string, maxWidth = 1080, maxPixels = 6_000_000): Promise<string> {
+  if (typeof document === 'undefined' || !dataUrl.startsWith('data:image/')) return dataUrl;
+  try {
+    const img = new Image();
+    img.src = dataUrl;
+    await img.decode();
+    const scale = Math.min(1, maxWidth / img.naturalWidth, Math.sqrt(maxPixels / (img.naturalWidth * img.naturalHeight)));
+    if (scale >= 1 && dataUrl.length < 700_000) return dataUrl;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return dataUrl;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const out = canvas.toDataURL('image/jpeg', 0.85);
+    return out.length < dataUrl.length ? out : dataUrl;
+  } catch {
+    return dataUrl;
+  }
+}
+
+const NO_IMAGE = '模型没有读出任何指标，可能没收到图片（服务不稳定或该模型不支持看图）。请重试，或换一个支持图片识别的模型。';
+
 export interface BodyPhotoResult {
   measuredDate: string | null;
   metrics: BodyMetrics;
   rawResponse: string;
 }
 
+// 旧提示词允许模型“自然语言回复”，结果常常抽不出数值。改为严格 JSON，并要求 value/confidence。
+const BODY_SYSTEM = '从体脂秤App报告截图提取明确显示的数值，不推算、不编造；只输出JSON：{"measured_date":"YYYY-MM-DD或null","metrics":{"weight_kg":{"value":null,"confidence":"high|low"},"body_fat_pct":null,"muscle_kg":null,"visceral_fat":null,"bmr_kcal":null,"bmi":null}}。每项已识别指标使用value/confidence对象，value只填数字不带单位；缺失字段填null。muscle_kg取骨骼肌量。';
+
 export async function recognizeBodyPhoto(state: State, image: string, details?: { condition: string; sleep: string; availableMinutes: string }): Promise<BodyPhotoResult> {
-  const rawResponse = await chatRaw(state, '读取用户上传的报告截图并描述测量结果。直接回复用户，不需要审核图片类型、日期或数值范围。可返回自然语言或包含 measured_date、metrics 的 JSON。', [
-    { type: 'text', text: '请读取这张报告截图。用户补充：' + JSON.stringify(details ?? {}) },
-    { type: 'image_url', image_url: { url: image } },
-  ]);
-  let parsed: any;
-  try { parsed = parseJson(rawResponse); } catch { parsed = {}; }
-  const metrics: BodyMetrics = {};
-  for (const field of BODY_FIELDS) {
-    const raw = parsed?.metrics?.[field.key];
-    const value = num(raw && typeof raw === 'object' ? raw.value : raw);
-    if (value != null) metrics[field.key] = value;
-  }
-  return { measuredDate: typeof parsed?.measured_date === 'string' ? parsed.measured_date : null, metrics, rawResponse };
+  const url = await shrinkImage(image);
+  const read = (parsed: any) => {
+    const metrics: BodyMetrics = {};
+    for (const field of BODY_FIELDS) {
+      const raw = parsed?.metrics?.[field.key];
+      const value = num(raw && typeof raw === 'object' ? raw.value : raw);
+      if (value != null) metrics[field.key] = value;
+    }
+    return metrics;
+  };
+  const rawResponse = await withRetry(async () => {
+    const response = await chatRaw(state, BODY_SYSTEM, [
+      { type: 'text', text: '请读取这张报告截图。用户补充：' + JSON.stringify(details ?? {}) },
+      { type: 'image_url', image_url: { url } },
+    ]);
+    let parsed: any;
+    try { parsed = parseJson(response); } catch { throw new Error(NO_IMAGE); }
+    if (!Object.keys(read(parsed)).length) throw new Error(NO_IMAGE);
+    return response;
+  });
+  const parsed = parseJson(rawResponse);
+  return { measuredDate: normalizeDate(parsed?.measured_date), metrics: read(parsed), rawResponse };
 }
 
 // ---------- ① 餐饮识别 ----------
@@ -104,7 +186,7 @@ export interface MealResult {
 export async function recognizeMeal(s: State, slot: MealSlot, text: string, image?: string): Promise<MealResult> {
   const eaten = Object.values(day(s).meals).reduce((n, m) => n + (m?.total_kcal ?? 0), 0);
   const prompt = `餐次：${MEAL_LABEL[slot]}\n用户描述：${text || '（无，仅看图片）'}\n今日已摄入：${eaten} kcal，今日目标：${day(s).plan?.targets.intake_kcal ?? defaultIntake(s)} kcal`;
-  const content: Content = image ? [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: image } }] : prompt;
+  const content: Content = image ? [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: await shrinkImage(image) } }] : prompt;
   const r = await withRetry(() => chat(s, MEAL_SYSTEM, content));
   return normalizeMeal(r);
 }
@@ -134,7 +216,7 @@ export async function recognizeScreenshots(s: State, images: string[]): Promise<
   if (!images.length) throw new Error('请先上传截图');
   const content: Content = [
     { type: 'text', text: `请识别这些截图。今天是 ${today()}。` },
-    ...images.map((url) => ({ type: 'image_url' as const, image_url: { url } })),
+    ...(await Promise.all(images.map(async (url) => ({ type: 'image_url' as const, image_url: { url: await shrinkImage(url) } })))),
   ];
   const r = await withRetry(() => chat(s, SHOT_SYSTEM, content));
   const fields: any = {};
@@ -144,7 +226,7 @@ export async function recognizeScreenshots(s: State, images: string[]): Promise<
       else if (v != null) fields[k] = { value: v, confidence: 'high' };
     }
   }
-  return { date: r.date ?? null, fields };
+  return { date: normalizeDate(r.date), fields };
 }
 
 // ---------- ③ 每日计划 ----------
