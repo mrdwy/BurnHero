@@ -1,0 +1,12 @@
+*
+!web/
+!web/**
+!server/
+!server/**
+**/node_modules
+**/dist
+**/.env*
+**/*.log
+**/*.tsbuildinfo
+**/review
+**/.git
