@@ -22,7 +22,7 @@ export default function Character({ go }: { go: Go }) {
   return (
     <div className="screen">
       <div className="row between">
-        <span className="chip">角色</span>
+        <button className="btn ghost small" onClick={() => go('onlineGuild')}>线上战队</button>
         <button className="btn ghost small" onClick={() => go('settings')}><Ico n="gear" s={20} />设置</button>
       </div>
 
