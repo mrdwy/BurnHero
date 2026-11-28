@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { dayMut, getState, latestAssessment, setState, today, useStore } from '../store';
 import { BodyPhotoResult, recognizeBodyPhoto } from '../llm';
 import { Panel, Title } from '../components/ui';
+import { createId } from '../id';
 
 export default function BodyCheck({ onDone, onCancel, onSettings }: { onDone: () => void; onCancel?: () => void; onSettings: () => void }) {
   const existing = useStore((state) => latestAssessment(state));
@@ -51,7 +52,7 @@ export default function BodyCheck({ onDone, onCancel, onSettings }: { onDone: ()
       const entry = dayMut(state);
       const metrics = result?.metrics ?? existing?.metrics ?? {};
       entry.bodyAssessment = {
-        id: crypto.randomUUID(), measuredDate: result?.measuredDate ?? existing?.measuredDate ?? today(), recordedAt: new Date().toISOString(),
+        id: createId(), measuredDate: result?.measuredDate ?? existing?.measuredDate ?? today(), recordedAt: new Date().toISOString(),
         metrics, condition, sleepHours: sleep, availableMinutes: minutes, reportResponse: result?.rawResponse ?? existing?.reportResponse,
       };
       if (metrics.weight_kg != null) entry.weight = metrics.weight_kg;
